@@ -22,7 +22,7 @@ public class TestConfigurationManager {
         Configuration configuration = cm.getCurrentConfiguration();
         assertEquals(configuration.getNumberOfMiners(), 4);
         assertEquals(configuration.getNumberOfClients(), 4);
-        assertEquals(configuration.getAssumedBlockchainSize(), 10);
+        assertEquals(configuration.getAssumedBlockchainSize(), 12);
         assertEquals(configuration.getInitialClientsDelay(), 150);
         assertEquals(configuration.getClientsTransactionsDelay(), 500);
     }
