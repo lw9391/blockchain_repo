@@ -1,0 +1,9 @@
+{
+  "numberOfMiners": 3,
+  "numberOfClients": 3,
+  "assumedBlockchainSize": 5,
+  "difficultyTarget": 30,
+  "difficultyTolerance": 10,
+  "initialClientsDelay": 150,
+  "clientsTransactionsDelay": 1500
+}
