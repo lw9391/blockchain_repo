@@ -246,15 +246,7 @@ public final class Blockchain {
         }
     }
 
-    public void loadBlockchainFromJson(String path, boolean checkBalance) {
-        // TODO: 08.05.2021 implement loading from json
-    }
-
     List<Block> getBlockList() {
         return new ArrayList<>(createdBlocks);
-    }
-
-    TransactionsManager getTransactionsManager() {
-        return transactionsManager;
     }
 }

@@ -1,4 +1,4 @@
 .gradle
 build
-serialization
+serialization_output
 .idea
