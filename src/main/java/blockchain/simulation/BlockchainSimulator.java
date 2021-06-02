@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 
 public final class BlockchainSimulator {
     public static final String CONFIG_FILEPATH = "config/config.json";
-    public static final String SERIALIZATION_PATH = "serialization/";
+    public static final String SERIALIZATION_PATH = "serialization_output/";
     public static final String BLOCKCHAIN_FILENAME = "blockchain";
     public static final String PENDING_TRANSACTIONS_FILENAME = "pending_transactions";
     public static final String MINERS_FILENAME = "miners";
