@@ -45,7 +45,6 @@ public final class AddressGenerator {
     }
 
     private static byte[] concatByteArrays(byte[] first, byte[] second) {
-        // TODO: 09.03.2021 probably worthy co extend this method to concat N arrays
         byte[] concated = new byte[first.length + second.length];
         System.arraycopy(first,0,concated, 0, first.length);
         System.arraycopy(second, 0, concated, first.length, second.length);

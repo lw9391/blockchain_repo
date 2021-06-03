@@ -107,12 +107,8 @@ public final class Blockchain {
     /* For simulation purposes, blockchain won't increase number of required zeros to more than 6.
     * That time analyze isn't very accurate (specially for that short amounts of time) due to the method of finding nonce -
     * miners gets current time and then try to find nonce with that time(check BlockFactory).
-    * Time will be changed only after attempt to add new block. Alternatively this can be done with
-    * additional scheduled threads in miners class (which I want to avoid) to change time lets say every 3 sec
-    * or constantly getting new timestamp with System.currentTimeMillis or Date.getTime() which (for me) doesn't seem to
-    * be good idea. */
+    * Time will be changed only after attempt to add new block */
     private synchronized void difficultyAdjustment() {
-        /* Checking this condition is useful only on the beginning, maybe there is better way to solve this */
         long averageTime = calcAverageCreationTime() / 1000;
 
         LOGGER.info("Average time creation of 3 last block is " + averageTime + " seconds");
