@@ -12,6 +12,22 @@ import java.util.List;
 class EncryptionUtilsTest {
 
     @Test
+    void testEncodeIntoHex() {
+        byte[] example = new byte[] { 10, -11, 12, 14, 45, 16 };
+        String exampleHex = "0af50c0e2d10";
+        assertEquals(exampleHex, EncryptionUtils.encodeIntoHex(example));
+    }
+
+    @Test
+    void testDecodeHexString() {
+        byte[] example = new byte[] { 10, -11, 12, 14, 45, 16 };
+        String exampleHex = "0af50c0e2d10";
+        assertArrayEquals(example, EncryptionUtils.decodeHexString(exampleHex));
+        String wrongHexString = "1";
+        assertThrows(IllegalArgumentException.class, () -> EncryptionUtils.decodeHexString(wrongHexString));
+    }
+
+    @Test
     void testApplySha256() {
         String testString = "test";
         assertEquals("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", EncryptionUtils.applySha256(testString));
