@@ -1,6 +1,5 @@
 package blockchain.core;
 
-import blockchain.simulation.clients.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +11,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +20,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TransactionValidator {
     private static Logger LOGGER = LoggerFactory.getLogger(TransactionValidator.class);
@@ -186,35 +187,11 @@ public class TransactionValidator {
         return signature.verify(signatureToVerify);
     }
 
-
     /*  -----------------------  */
     /* Faster way for checking block transactions, this method only checks signatures. Should be enough for most cases. */
-    public boolean checkExistingBlockTransactions(Block block) {
+    public boolean checkTransactionsSignatures(Block block) {
         List<SignedTransaction> transactionsToCheck = block.getTransactions();
         return checkSignaturesOfTransactionsInList(transactionsToCheck);
-    }
-
-    /* Unlike the method above, this also checks clients balances. Requires balance map prepared of previous blocks. */
-    public boolean checkExistingBlockTransactions(Block block, Map<Client, Double> balanceMap) {
-        List<SignedTransaction> transactionsList = block.getTransactions();
-
-        boolean signaturesCheck = checkSignaturesOfTransactionsInList(transactionsList);
-
-        boolean balanceCheck = checkBalanceMap(balanceMap);
-
-        return signaturesCheck && balanceCheck;
-    }
-
-    /* In a given part (or whole) blockchain checks for duplicated transactions. Transaction is considered to be duplicated if the
-     * same sender has two or more transactions with the same time. */
-    public boolean checkForDuplicatedTransactions(List<Block> blocks) {
-        long duplications = blocks.stream()
-                .flatMap(block -> block.getTransactions().stream())
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
-                .entrySet().stream()
-                .filter(m -> m.getValue() > 1)
-                .count();
-        return !(duplications > 0);
     }
 
     private boolean checkSignaturesOfTransactionsInList(List<SignedTransaction> transactions) {
@@ -225,43 +202,84 @@ public class TransactionValidator {
         return count == transactions.size();
     }
 
+    public boolean checkNewBlockOutgoings(Block newBlock, Map<String, Long> balanceMap) {
+        Map<String, Long> outgoingsOfNewBlock = getMapOfOutgoings(newBlock);
+        long count = outgoingsOfNewBlock.keySet()
+                .stream()
+                .filter(address -> {
+                    Long outgoing = outgoingsOfNewBlock.get(address);
+                    Long balance = balanceMap.get(address);
+                    return balance == null || balance < -1 * outgoing;
+                })
+                .count();
+        return count == 0;
+    }
+
+    /* Returns map containing only spent coins of each address */
+    public Map<String, Long> getMapOfOutgoings(Block block) {
+        Map<String, Long> outgoings = new HashMap<>();
+        block.getTransactions().forEach(updateSenderBalances(outgoings));
+        return outgoings;
+    }
+
+    public boolean checkBalanceMap(Map<String, Long> balanceMap) {
+        assert balanceMap.size() > 0;
+        double lowestBalance = balanceMap.values()
+                .stream()
+                .mapToLong(Long::longValue)
+                .min()
+                .getAsLong();
+        return lowestBalance >= 0;
+    }
+
+    /* In a given part (or whole) blockchain checks for duplicated transactions. Transaction is considered to be duplicated if the
+     * same sender has two or more transactions with the same time. */
+    public boolean hasDuplicatedTransactions(List<Block> blocks) {
+        long duplications = blocks.stream()
+                .flatMap(block -> block.getTransactions().stream())
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                .entrySet().stream()
+                .filter(m -> m.getValue() > 1)
+                .count();
+        return (duplications > 0);
+    }
+
+    public boolean hasDuplicatedTransactions(Block block, List<Block> existingBlocks) {
+        long duplications = Stream.concat(existingBlocks.stream().flatMap(block1 -> block1.getTransactions().stream()), block.getTransactions().stream())
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                .entrySet().stream()
+                .filter(m -> m.getValue() > 1)
+                .count();
+        return (duplications > 0);
+    }
+
     /* This method update map with clients balances based on provided block. Requires balance map prepared of previous block or empty map
      * if this is first block in blockchain. Recommended to use hash map for efficiency purposes. */
-    public Map<String, Double> updateBalanceMap(List<SignedTransaction> transactionList, Map<String, Double> balanceMap) {
-        transactionList.forEach(updateBalanceMap(balanceMap));
+    public Map<String, Long> updateBalanceMap(Block block, Map<String, Long> balanceMap) {
+        block.getTransactions().forEach(updateBalanceMap(balanceMap));
         return balanceMap;
     }
 
-    public Map<String, Double> updateBalanceMap(MinerReward reward, Map<String, Double> balanceMap) {
+    public Map<String, Long> updateBalanceMap(MinerReward reward, Map<String, Long> balanceMap) {
         String miner = reward.getMiner();
-        double rewardValue = reward.getReward();
+        long rewardValue = reward.getReward();
         if (balanceMap.containsKey(miner)) {
-            double oldBalance = balanceMap.get(miner);
-            balanceMap.replace(miner,oldBalance + rewardValue);
+            long oldBalance = balanceMap.get(miner);
+            balanceMap.replace(miner, oldBalance + rewardValue);
         } else {
             balanceMap.put(miner, rewardValue);
         }
         return balanceMap;
     }
 
-    private Consumer<SignedTransaction> updateBalanceMap(Map<String, Double> mapToUpdate) {
-        Consumer<SignedTransaction> updateSendersBalances = (signedTransaction) -> {
-            String sender = signedTransaction.getTransaction().getSender();
-            double amount = signedTransaction.getTransaction().getAmount();
-            if (mapToUpdate.containsKey(sender)) {
-                double prevBalance = mapToUpdate.get(sender);
-                double balance = prevBalance - amount;
-                mapToUpdate.replace(sender, balance);
-            } else {
-                mapToUpdate.put(sender, -amount);
-            }
-        };
+    private Consumer<SignedTransaction> updateBalanceMap(Map<String, Long> mapToUpdate) {
+        Consumer<SignedTransaction> updateSendersBalances = updateSenderBalances(mapToUpdate);
         Consumer<SignedTransaction> updateReceiversBalances = (signedTransaction) -> {
             String receiver = signedTransaction.getTransaction().getReceiver();
-            double amount = signedTransaction.getTransaction().getAmount();
+            long amount = signedTransaction.getTransaction().getAmount();
             if (mapToUpdate.containsKey(receiver)) {
-                double prevBalance = mapToUpdate.get(receiver);
-                double balance = prevBalance + amount;
+                long prevBalance = mapToUpdate.get(receiver);
+                long balance = prevBalance + amount;
                 mapToUpdate.replace(receiver, balance);
             } else {
                 mapToUpdate.put(receiver, amount);
@@ -270,13 +288,17 @@ public class TransactionValidator {
         return updateReceiversBalances.andThen(updateSendersBalances);
     }
 
-    private boolean checkBalanceMap(Map<Client, Double> balanceMap) {
-        assert balanceMap.size() > 0;
-        double lowestBalance = balanceMap.values()
-                .stream()
-                .mapToDouble(Double::doubleValue)
-                .min()
-                .getAsDouble();
-        return lowestBalance >= 0;
+    private Consumer<SignedTransaction> updateSenderBalances(Map<String, Long> mapToUpdate) {
+        return  (signedTransaction) -> {
+            String sender = signedTransaction.getTransaction().getSender();
+            long amount = signedTransaction.getTransaction().getAmount();
+            if (mapToUpdate.containsKey(sender)) {
+                long prevBalance = mapToUpdate.get(sender);
+                long balance = prevBalance - amount;
+                mapToUpdate.replace(sender, balance);
+            } else {
+                mapToUpdate.put(sender, -amount);
+            }
+        };
     }
 }

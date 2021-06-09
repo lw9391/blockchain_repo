@@ -2,7 +2,6 @@ package blockchain.core;
 
 import blockchain.utils.SerializationUtils;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -14,7 +13,9 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,9 +25,9 @@ class TransactionValidatorTest {
     private static String secondClient;
     private static String thirdClient;
     private static byte[] dummyBytes;
-
-    private List<Block> exampleBlocks;
-    private List<SignedTransaction> exampleTransactions;
+    private static List<Block> exampleBlocks;
+    private static List<SignedTransaction> exampleTransactions;
+    private static Block newBlock;
 
     @BeforeAll
     static void beforeAll() {
@@ -35,15 +36,14 @@ class TransactionValidatorTest {
         secondClient = "SC";
         thirdClient = "TC";
         dummyBytes = new byte[]{1};
-    }
-
-    @BeforeEach
-    void setUp() {
         exampleBlocks = prepareExampleBlocks();
         exampleTransactions = preparePendingTransactions();
+        newBlock = Block.newBuilder()
+                .setTransactions(exampleTransactions)
+                .build();
     }
 
-    private List<Block> prepareExampleBlocks() {
+    private static List<Block> prepareExampleBlocks() {
         List<Block> blocks = new ArrayList<>(4);
 
         Block genesis = Block.newBuilder()
@@ -75,7 +75,7 @@ class TransactionValidatorTest {
         return blocks;
     }
 
-    private List<SignedTransaction> preparePendingTransactions() {
+    private static List<SignedTransaction> preparePendingTransactions() {
         List<SignedTransaction> pendingTransactions = new ArrayList<>();
         Transaction first = new Transaction(firstClient, thirdClient, 10);
         SignedTransaction firstSigned = new SignedTransaction(first, 10, dummyBytes, dummyBytes);
@@ -150,5 +150,68 @@ class TransactionValidatorTest {
         byte[] sign = signature.sign();
         SignedTransaction signedTransaction = new SignedTransaction(dummy, timestamp, sign, publicKey.getEncoded());
         assertTrue(validator.checkSignatureValidity(signedTransaction));
+    }
+
+    @Test
+    void testCheckNewBlockOutgoings() {
+        Map<String, Long> balanceMap = new HashMap<>();
+        balanceMap.put(firstClient, 10L);
+        balanceMap.put(secondClient, 10L);
+        balanceMap.put(thirdClient, 10L);
+        assertTrue(validator.checkNewBlockOutgoings(newBlock, balanceMap));
+
+        balanceMap.replace(firstClient, -10L);
+        assertFalse(validator.checkNewBlockOutgoings(newBlock, balanceMap));
+    }
+
+    @Test
+    void testCheckBalanceMap() {
+        Map<String, Long> balanceMap = new HashMap<>();
+        balanceMap.put(firstClient, 10L);
+        balanceMap.put(secondClient, 10L);
+        balanceMap.put(thirdClient, 10L);
+        assertTrue(validator.checkBalanceMap(balanceMap));
+
+        balanceMap.replace(firstClient, -10L);
+        assertFalse(validator.checkBalanceMap(balanceMap));
+    }
+
+    @Test
+    void testGetMapOfOutgoings() {
+        Map<String, Long> mapOfOutgoings = validator.getMapOfOutgoings(exampleBlocks.get(2));
+        assertEquals(-30, mapOfOutgoings.get(firstClient).longValue());
+
+        Map<String, Long> mapOfPending = validator.getMapOfOutgoings(newBlock);
+        assertEquals(-10, mapOfPending.get(firstClient));
+        assertEquals(-10, mapOfPending.get(secondClient));
+    }
+
+    @Test
+    void testHasDuplicatedTransactions() {
+        assertFalse(validator.hasDuplicatedTransactions(exampleBlocks));
+        List<Block> blocks = new ArrayList<>(exampleBlocks);
+        blocks.add(blocks.get(2));
+        assertTrue(validator.hasDuplicatedTransactions(blocks));
+
+        assertFalse(validator.hasDuplicatedTransactions(newBlock, exampleBlocks));
+    }
+
+    @Test
+    void testUpdateBalanceMap() {
+        Map<String, Long> balanceMap = new HashMap<>();
+        balanceMap.put(firstClient, 10L);
+        balanceMap.put(secondClient, 10L);
+        balanceMap.put(thirdClient, 10L);
+
+        validator.updateBalanceMap(newBlock, balanceMap);
+        assertEquals(0, balanceMap.get(firstClient));
+        assertEquals(0, balanceMap.get(secondClient));
+        assertEquals(30, balanceMap.get(thirdClient));
+
+        MinerReward reward = new MinerReward(secondClient, 100);
+        validator.updateBalanceMap(reward, balanceMap);
+        assertEquals(0, balanceMap.get(firstClient));
+        assertEquals(100, balanceMap.get(secondClient));
+        assertEquals(30, balanceMap.get(thirdClient));
     }
 }
