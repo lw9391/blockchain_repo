@@ -48,8 +48,7 @@ public class SignedTransaction implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         SignedTransaction that = (SignedTransaction) o;
         return timestamp == that.timestamp &&
-                Objects.equals(transaction, that.transaction) &&
-                Arrays.equals(signature, that.signature);
+                Objects.equals(transaction, that.transaction);
     }
 
     @Override
