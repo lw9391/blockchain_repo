@@ -12,7 +12,7 @@ import java.util.List;
 
 public final class TransactionsManager implements Serializable {
     private final List<SignedTransaction> pendingTransactions;
-    private final TransactionValidator validator;
+    private transient TransactionValidator validator;
     private transient Blockchain blockchain;
     private static final long serialVersionUID = 1L;
     public static transient Logger LOGGER = LoggerFactory.getLogger(TransactionsManager.class);
@@ -63,6 +63,7 @@ public final class TransactionsManager implements Serializable {
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         ois.defaultReadObject();
         this.blockchain = Blockchain.getInstance();
+        this.validator = new TransactionValidator();
         LOGGER = LoggerFactory.getLogger(TransactionsManager.class);
     }
 

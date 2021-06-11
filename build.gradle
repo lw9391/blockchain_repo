@@ -6,7 +6,7 @@ plugins {
 group 'org.lwprojects'
 version '1.0-SNAPSHOT'
 
-sourceCompatibility = 15.0
+sourceCompatibility = 16.0
 
 application {
     mainClass.set('src/main/java/blockchain/Main.java')
