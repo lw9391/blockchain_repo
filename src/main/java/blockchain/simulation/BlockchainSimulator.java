@@ -96,11 +96,11 @@ public final class BlockchainSimulator {
     public void run() {
         loadSimulationProgress();
         runMinersAndClients();
-        while (blockChain.size() < config.getAssumedBlockchainSize()) {
+        synchronized (this) {
             try {
-                Thread.sleep(1000);
+                this.wait();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOGGER.warn("InterruptedException during waiting", e);
             }
         }
         minersThreadPool.shutdown();

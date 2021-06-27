@@ -33,13 +33,18 @@ public class Miner implements Runnable, Serializable {
             boolean append = blockChain.appendNextBlock(block);
             if (append) {
                 prepareTransaction();
+                if (block.getId() == simulator.getAssumedSize()) {
+                    synchronized (simulator) {
+                        simulator.notifyAll();
+                    }
+                }
             }
         }
     }
 
     private void prepareTransaction() {
         Random random = new Random();
-        int nextInt = random.nextInt(2);
+        int nextInt = random.nextInt(5);
         if (nextInt < 3) {
             int amount = random.nextInt(101);
             Client receiver = simulator.randomClient(client);
