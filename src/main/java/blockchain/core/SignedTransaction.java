@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Objects;
 
-public class SignedTransaction implements Serializable {
+public final class SignedTransaction implements Serializable {
     private final Transaction transaction;
     private final long timestamp;
     private final byte[] signature;
@@ -18,7 +18,7 @@ public class SignedTransaction implements Serializable {
     }
 
     public byte[] getSignature() {
-        return signature;
+        return Arrays.copyOf(signature, signature.length);
     }
 
     public Transaction getTransaction() {
@@ -30,7 +30,7 @@ public class SignedTransaction implements Serializable {
     }
 
     public byte[] getPublicKey() {
-        return publicKey;
+        return Arrays.copyOf(publicKey, publicKey.length);
     }
 
     @Override

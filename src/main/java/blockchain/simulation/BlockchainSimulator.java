@@ -95,6 +95,9 @@ public final class BlockchainSimulator {
 
     public void run() {
         loadSimulationProgress();
+        if (blockChain.size() >= config.getAssumedBlockchainSize()) {
+            return;
+        }
         runMinersAndClients();
         synchronized (this) {
             try {

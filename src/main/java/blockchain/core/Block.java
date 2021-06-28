@@ -2,6 +2,7 @@ package blockchain.core;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class Block implements Serializable {
@@ -181,7 +182,7 @@ public final class Block implements Serializable {
 
         @Override
         public Builder setTransactions(List<SignedTransaction> transactions) {
-            this.transactions = transactions;
+            this.transactions = Collections.unmodifiableList(transactions);
             return this;
         }
 
