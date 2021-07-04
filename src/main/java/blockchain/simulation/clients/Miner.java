@@ -44,12 +44,9 @@ public class Miner implements Runnable, Serializable {
 
     private void prepareTransaction() {
         Random random = new Random();
-        int nextInt = random.nextInt(5);
-        if (nextInt < 3) {
-            int amount = random.nextInt(101);
-            Client receiver = simulator.randomClient(client);
-            transfer(receiver, amount);
-        }
+        long amount = random.nextInt((int)client.updateAmountOfCoins()/4);
+        Client receiver = simulator.randomClient(client);
+        transfer(receiver, amount);
     }
 
     public void transfer(Client receiver, long amount) {

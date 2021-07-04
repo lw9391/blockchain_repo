@@ -11,6 +11,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -53,7 +56,7 @@ public final class BlockchainSimulator {
             loadConfiguration();
             LOGGER.info("Configuration loaded.");
         } catch (FileNotFoundException e) {
-            LOGGER.warn("Configuration file not found, using basic configuration.");
+            LOGGER.info("Configuration file not found, using basic configuration.");
             config = configurationManager.getBaseConfiguration();
         }
     }
@@ -127,6 +130,11 @@ public final class BlockchainSimulator {
     }
 
     public void saveSimulationProgress() {
+        try {
+            Files.createDirectories(Paths.get(SERIALIZATION_PATH));
+        } catch (IOException e) {
+            LOGGER.error("Error during creating output folder", e);
+        }
         String blocksPath = BlockchainSimulator.SERIALIZATION_PATH + BlockchainSimulator.BLOCKCHAIN_FILENAME;
         String pendingTransactionsPath = BlockchainSimulator.SERIALIZATION_PATH + BlockchainSimulator.PENDING_TRANSACTIONS_FILENAME;
         blockChain.saveBlockchainContent(blocksPath);
@@ -148,7 +156,7 @@ public final class BlockchainSimulator {
             clients = (ArrayList<Client>) SerializationUtils.deserialize(SERIALIZATION_PATH + CLIENTS_FILENAME);
             miners.forEach(miner -> miner.setSimulator(this));
         } catch (IOException e) {
-            LOGGER.warn("Exception occurred during loading miners and clients. Creating new clients and miners...");
+            LOGGER.info("Exception occurred during loading miners and clients. Creating new clients and miners...");
             miners.clear();
             clients.clear();
             initializeMiners();

@@ -21,7 +21,7 @@ public class Client implements Serializable {
         wallet.sendTransaction(transaction);
     }
 
-    private double updateAmountOfCoins() {
+    public long updateAmountOfCoins() {
         return wallet.checkAmountOfCoins();
     }
 
