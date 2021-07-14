@@ -4,12 +4,12 @@ plugins {
 }
 
 group 'org.lwprojects'
-version '1.0-SNAPSHOT'
+version '0.1-DEMO'
 
 sourceCompatibility = 16.0
 
 application {
-    mainClass.set('src/main/java/blockchain/Main.java')
+    mainClass.set('blockchain/Main')
 }
 
 repositories {
