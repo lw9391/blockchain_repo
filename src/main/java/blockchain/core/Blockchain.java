@@ -23,12 +23,10 @@ public final class Blockchain {
     private static final Blockchain blockChain = new Blockchain();
 
     private LinkedList<Block> createdBlocks;
-    private volatile int numberOfZerosRequired = 5;
     private TransactionsManager transactionsManager;
+    private DifficultyAdjuster difficultyAdjuster;
 
     public static final long REWARD_VALUE = 100;
-    public static final int DIFFICULTY_TARGET = 15;
-    public static final int DIFFICULTY_TOLERANCE = 3;
     public static final String KEYS_ALGORITHM = "RSA";
     public static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
 
@@ -46,6 +44,7 @@ public final class Blockchain {
                 .build();
         createdBlocks.add(zeroBlock);
         this.transactionsManager = new TransactionsManager(this);
+        this.difficultyAdjuster = new DifficultyAdjuster();
     }
 
     public static synchronized Blockchain getInstance() {
@@ -60,9 +59,7 @@ public final class Blockchain {
         transactionsManager.removeTransactionsAddedInNewBlock(nextBlock);
 
         boolean appended = createdBlocks.add(nextBlock);
-        if(appended && nextBlock.getId() % 3 == 0) {
-            difficultyAdjustment();
-        }
+        difficultyAdjuster.adjustDifficulty(createdBlocks);
         System.out.println();
         return appended;
     }
@@ -88,8 +85,8 @@ public final class Blockchain {
 
         /* Checks if new block hash starts with required number of zeros */
         String startingHash = nextBlock.getBlockHash()
-                .substring(0, numberOfZerosRequired);
-        String startingZerosRequired = "0".repeat(Math.max(0, numberOfZerosRequired));
+                .substring(0, difficultyAdjuster.getDifficultyValue());
+        String startingZerosRequired = "0".repeat(Math.max(0, difficultyAdjuster.getDifficultyValue()));
         boolean zerosCheck = startingHash.equals(startingZerosRequired);
 
         /* Check transactions hash */
@@ -102,66 +99,6 @@ public final class Blockchain {
         boolean hashCheck = newHash.equals(nextBlock.getBlockHash());
 
         return timeCheck && prevHashCheck && zerosCheck && transactionHashCheck && hashCheck;
-    }
-
-    /* For simulation purposes, blockchain won't increase number of required zeros to more than 6.
-    * That time analyze isn't very accurate (specially for that short amounts of time) due to the method of finding nonce -
-    * miners gets current time and then try to find nonce with that time(check BlockFactory).
-    * Time will be changed only after attempt to add new block */
-    private synchronized void difficultyAdjustment() {
-        long averageTime = calcAverageCreationTime() / 1000;
-
-        LOGGER.info("Average time creation of 3 last block is " + averageTime + " seconds");
-        int difficultyIndex = difficultyCheck(averageTime, numberOfZerosRequired);
-        if (difficultyIndex == 1) {
-            numberOfZerosRequired++;
-            LOGGER.info("N was increased to " + numberOfZerosRequired);
-        } else if (difficultyIndex == -1) {
-            numberOfZerosRequired--;
-            LOGGER.info("N was decreased by 1");
-        } else {
-            LOGGER.info("N stays the same.");
-        }
-    }
-
-    private int difficultyCheck(long time, int currentDiff) {
-        if (time < (DIFFICULTY_TARGET - DIFFICULTY_TOLERANCE) && currentDiff < 6) {
-            return 1;
-        } else if (time > (DIFFICULTY_TARGET + DIFFICULTY_TOLERANCE) && currentDiff > 2) {
-            return -1;
-        } else return 0;
-    }
-
-    private synchronized long calcAverageCreationTime() {
-        return calcAverageCreationTime(createdBlocks.getLast(), createdBlocks);
-    }
-
-    private long calcAverageCreationTime(Block block, List<Block> blockList) {
-        int start = block.getId();
-        int end = Math.max(start - 3, 1);
-        long summedTime = 0;
-        for (int i = start; i > end; i--) {
-            Block later = blockList.get(i);
-            Block earlier = blockList.get(i - 1);
-            long compared = later.getTimestamp() - earlier.getTimestamp();
-            summedTime += compared;
-        }
-        return summedTime / (start - end);
-    }
-
-     /* Method to estimate difficulty from newly loaded blockchain. Simply getting number of first zero's from
-     * last block may on very rare occasions lead to overestimation due to possibility of finding hash with more zeros
-     * than is required. To avoid it this method analyze difficulty and time of n blocks. */
-    public int calculateDifficulty() {
-        ArrayList<Block> arrayList = new ArrayList<>(createdBlocks);
-        int difficulty = 5;
-        for (int i = 3; i < arrayList.size(); i+=3) {
-            Block current = arrayList.get(i);
-            long time = calcAverageCreationTime(current, arrayList) / 1000;
-            int step = difficultyCheck(time, difficulty);
-            difficulty += step;
-        }
-        return difficulty;
     }
 
     public synchronized boolean addTransaction(SignedTransaction signedTransaction) {
@@ -181,7 +118,7 @@ public final class Blockchain {
     }
 
     public int getNumberOfZerosRequired() {
-        return numberOfZerosRequired;
+        return difficultyAdjuster.getDifficultyValue();
     }
 
     public synchronized int size() {
@@ -208,7 +145,8 @@ public final class Blockchain {
     public void loadBlockchainContent(String blocksPath) {
         try {
             createdBlocks = (LinkedList<Block>) SerializationUtils.deserialize(blocksPath);
-            numberOfZerosRequired = calculateDifficulty();
+            difficultyAdjuster = new DifficultyAdjuster();
+            difficultyAdjuster.calculateCurrentDifficulty(createdBlocks);
         } catch (IOException e) {
             LOGGER.error("Error loading Blockchain content, path" + blocksPath);
         } catch (ClassNotFoundException e) {
